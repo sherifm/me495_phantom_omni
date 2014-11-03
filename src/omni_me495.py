@@ -1,6 +1,4 @@
 #!/usr/bin/env python  
-import roslib
-roslib.load_manifest('me495_phantom_omni')
 import rospy
 import math
 import tf
