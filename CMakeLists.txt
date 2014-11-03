@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   tf
+  hrl_geom
+  pykdl_utils
 )
 
 ## System dependencies are found with CMake's conventions
