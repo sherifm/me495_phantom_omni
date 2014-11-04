@@ -2,8 +2,9 @@
 import rospy
 import math
 import tf
-from geometry_msgs.msg import Twist,Vector3
+from geometry_msgs.msg import Vector3
 from tf.transformations import euler_from_quaternion
+
 
 if __name__=='__main__':
 	rospy.init_node('mini_omni')
@@ -18,6 +19,7 @@ if __name__=='__main__':
 			(trans,quat) = listener.lookupTransform('base','stylus',rospy.Time(0))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 			continue
+			
 			
 		rot= euler_from_quaternion(quat)
 		S=Twist(Vector3(trans[0],trans[1],trans[2]),(Vector3(rot[0],rot[1],rot[2])))
