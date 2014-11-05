@@ -1,6 +1,3 @@
 .
 ..
-src/force_controller_circle.py
-src/learning_forces.py
-omni_kdl.py
-omni_me495.py
+.gitignore
