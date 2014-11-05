@@ -1,181 +1,190 @@
-ME495 Setup Instructions
-========================
+#ME495 Mini-Project: Sensable Phantom Omni and KDL
 
+##Installing Phantom Omni Software and Drivers
 
-## Trep installation ##
+To install the Phantom Omni Software on you computer follow these detailed [instructions](http://robotics.mech.northwestern.edu/~jarvis/omni-install.md).
 
-If you want to actually run the demo, you'll need to install [trep]. Trep is a
-piece of software for simulating the dynamics of rigid bodies (ME314!), and for
-performing optimal control calculations (ME454!) that was originally developed
-by [Elliot Johnson][ejo]. Trep is a Python module that is hosted on the [Python
-Package Index][pypi], and is installable using [pip] or [easy\_install][easy].
+Exceptions that might occur:
 
-Follow the [trep install instructions][tinstall] to install trep. I recommend
-following the steps in section 1 and sub-section 2.1. Note you must have `pip`
-installed for sub-section 2.1.
+1.After creating the udev rules for the Phantom Omni you will need to open the *50-phantom-firewire.rules* file with *sudo* permissions to be able to edit and save it. The same applies for */etc/ld.so.conf.d* which is created at a later stage. In example:
 
-## Obtaining a copy of the repository ##
-
-I've created a special *branch* in my `git` repository for the class to look
-at. In this section I'll tell you how to both get a copy of the code, and ensure
-you are on the right branch. First open a terminal, and navigate to the `src/`
-directory of your workspace
-
-```bash
-cd ~/catkin_ws/src
+```python
+sudo gedit /lib/udev/rules.d/50-phantom-firewire.rules
 ```
 
-Then you will *clone* the repository into that directory:
+2.After installtion, running 
 
-```bash
-git clone https://github.com/jarvisschultz/trep_puppet_demo.git -b me495
+```python
+sudo dpkg -i openhaptics-ae_3.0-2_amd64.deb
 ```
 
-Then running
+from the *OpenHaptics_Linux_v3_0/OpenHaptics-AE 3.0/64-bit* folder, might not show the files *libPHANToMIO.so* or *libPHANToMIO.so.4.3* as described in the instructions. In that case no duplicates were created, therefore one can skip the step of removing them from */usr/lib64*. Your Omni Drivers will still work fine.
 
-```bash
-cd trep_puppet_demo
-git branch
+##Installing required ROS packages to interact with the Omni
+
+You will need the following packages:
+
+1. [phantom_omni](https://github.com/danepowell/phantom_omni): Provides a node i.e. with rviz visualisation, joint state publishing, force manipulation and reporting button events.
+
+
+2. [omni_description](https://github.com/danepowell/omni_description):Contains the urdf model for the Sensable Phantom Omni
+
+You can install these packages by cloning them into a correctly set-up [catkin workspace][1] from their respective github repositories. In the *catkin_ws/src* directory run:
+[1]:http://wiki.ros.org/catkin/Tutorials/create_a_workspace
+
+```python
+git clone https://github.com/danepowell/phantom_omni
+git clone https://github.com/danepowell/omni_description
 ```
-
-should return `* me495` indicating you are on the `me495` branch. You should
-also now see all of the files for this package located in
-`~/catkin_ws/src/trep_puppet_demo/`.
-
-This package has no custom messages or services, but it does have one piece of
-C++ code. Therefore we must build this package. To accomplish this, we navigate
-to the root of the workspace, and execute `catkin_make`.
-
-```bash
-cd ~/catkin_ws/
+Build your catkin workspace:
+```python
+cd ~/catkin_ws
 catkin_make
 ```
 
-If you receive an error saying `catkin_make: command not found` then your
-environment is not setup correctly. Did you `source` the correct setup.bash file
-(the one in your workspace assuming your workspace was created correctly)? If
-you receive no errors, then everything worked!
+##Exploring phantom_omni and omni_description
 
-If your workspace is not located at `~/catkin_ws/` then all of the above should
-be adjusted accordingly.
+From a terminal launch the phantom_omni package:
 
-## Running the demo ##
+```python
+roslaunch phantom_omni omni.launch
+```
+Rviz should startup and a visualization of the omni will appear. Play around with the Omni!
 
-The demo can simply be run using
+In a new terminal explore the ROS topics:
 
-```bash
-roslaunch trep_puppet_demo puppet_sim.launch vis:=true
+```python
+rostopic list
+```
+In this project we will primarily be using the */omni1_joint_states* and */omni1_force_feedback*.
+
+Get more information about a topic using*rostopic info /TOPICNAME* i.e:
+
+```python
+rostopic info /omni1_joint_states
+```
+The node */omni1* is publishing to */omni1_joint_states* and *omni1_robot_state_publisher* is subscribing to it. The message data type is *sensor_msgs/JointState*.
+
+To further see the description of the message type *sensor_msgs/JointState* run:
+
+```python
+rosmsg show sensor_msgs/JointState
 ```
 
-setting the last part to `vis:=false` will prevent `rviz` from starting up. This
-could be nice when exploring how the pieces of this demo fit together as fewer
-nodes and connections will actually be created.
+In this project we will be using the *position* component of *JointState* which can store the values for all the joint angles of the Omni.  
 
-If you get errors like
+If intersted in the data that is being published to a certain topic from the terminal, make use of: *rostopic echo /TOPICNAME* i.e:
 
-```bash
-roslaunch: command not found
+```python
+rostopic echo /omni1_joint_states
 ```
 
-or
+Runnning the command *view_frames* listens to the /tf frames that are being broadcast and creates a *frames.pdf* file, which contains a tree of how the frames are conected.
 
-```bash
-[puppet_sim.launch] is neither a launch file in package [trep_puppet_demo] nor is [trep_puppet_demo] a launch file name
-The traceback for the exception was written to the log file
+
+
+##Creating additional packages
+
+This section covers creating a new package. The **nodes** developed in this is package are **capable of**: 
+
+1.**Using tf to lookup the transform** from the frame located at the root of the Omni’s URDF to the frame at the end of the URDF
+
+2.Using KDL to compute the **forward**, as well as **inverse** kinematics of the Omni
+
+3.Using *transformations.py* to get the transforms from KDL and tf expressed as elements of SE(3)
+
+4.Restricting the Phantom Omni to an axis floating in space
+
+**<span style="color:red">NOTE: If you do not want to manually recreate the demo package of this project, then clone [me495_phantom_omni](https://github.com/sherifm/me495_phantom_omni) and build your catkin workspace analogous to the previous packages!!!</span>** (Skip to 'Exploring the ME495 Mini-Project)
+
+###Create a package with the required dependencies
+
+Following this [tutorial](http://wiki.ros.org/ROS/Tutorials/CreatingPackage), create a package in the catkin source directory:
+
+```python
+cd ~/catkin_ws/src
+catkin_create_pkg me495_phantom_omni omni_description phantom omni roscpp rospy tf
 ```
 
-then something is wrong with your environment setup. Check your environment
-variables with `env |grep ROS`, and be sure that you have properly sourced the
-`setup.bash` file in your workspace. If your variables are still incorrect, or
-you are still getting the above errors, try carefully re-following the
-[catkin workspace creation tutorial](http://wiki.ros.org/catkin/Tutorials/create_a_workspace).
-You could also try deleting your workspace `devel/` directory with `rm -r
-~/catkin_ws/devel` and re-building with `catkin_make`.
+For our purposes you will depend on the following packages that need to be installed:
 
+```python
+sudo apt-get install ros-indigo-robot-model
+sudo apt-get install ros-indigo-urdfdom
+sudo apt-get install ros-indigo-urdfdom-py
 
-## Things to explore ##
+``` 
 
-Below is a list of things that would be worth exploring
+The above packages are debian packages that could be installed via *apt-get*. However, the [hrl-kdl](https://github.com/gt-ros-pkg/hrl-kdl) ROS package will also be depended on:
 
-1. Launch the demo, and use ROS console tools to investigate how the pieces fit
-   together (just like in class)
+```python
+cd ~/catkin_ws/src
+git clone https://github.com/gt-ros-pkg/hrl-kdl
+```
+###Writing the package node
 
-2. Practice using some of the `rqt` tools
-    * `rosrun rqt_graph rqt_graph` Shows nodes, and their topic connections. See
-      what happens when you toggle things like "Hide Debug" or "Group
-      namespaces" at the top. Note that the first search box at the top is for
-      picking individual nodes you are interested in, and the second search box
-      is for picking topics you are interested in. They both accept a
-      comma-separated list of topic/node names or regular expressions. For
-      example, we can put `/,-.*rviz,-.*rqt,-.*rosout` in the first box,
-      `/joint_states,/tf, /visualization_markers, /puppet_controls/.*` in the
-      second box, and uncheck "Hide Debug" to get a nice looking block diagram
-      of how the pieces actually fit together.
-<p>
-<br>
-<img src="./images/rosgraph-resize.png" alt="Useful ROS graph" width="640"
-      style="margin-left:auto; margin-right:auto; display:block;"/>
-<br>
-</p>
+Create a python script for your nodes:
 
-    * `rosrun rqt_plot rqt_plot /joint_states/position[1]` can be used to plot
-      one of the left shoulder angles.
+```python
+gedit ~/catkin_ws/src/me495_phantom_omni/omni_mini_proj.py
+gedit ~/catkin_ws/src/me495_phantom_omni/force_controller.py
+```
 
-    * `rosrun rqt_tf_tree rqt_tf_tree` can show you how all of the coordinate
-      systems in the ROS world fit together. `rosrun tf view_frames` can be used
-      to generate a PDF of the `/tf` tree.
+Save them and make them executable
 
-    * `rosrun rqt_console rqt_console` provides a quick console for viewing,
-      searching, and controlling ROS logging messages. Try opening this, and
-      then clicking the gear in the upper right. Then set the `rosout` logger
-      for `/marker_controls` node to the *Debug* level. Notice that green
-      printouts that are preceded by "[DEBUG]" now show up both in `rqt_console`
-      and in the terminal that launched the demo.
+```python
+sudo chmod +x ~/catkin_ws/src/me495_phantom_omni/omni_mini_proj.py
+sudo chmod +x ~/catkin_ws/src/me495_phantom_omni/force_controller.py
+```
 
-3. Play around with toggling the different displays in `rviz` to get a feel for
-   what they are. Of special interest are the settings for the *TF* display and
-   the *RobotModel* display.
+Paste the code from this [repository](https://github.com/sherifm/me495_phantom_omni/tree/master/src) into the respective python scripts. 
 
-4. Take a glance at the [launch/puppet_sim.launch](./launch/puppet_sim.launch)
-   file. Look at all of the *tags* and *attributes* that are set in the file,
-   then check out the
-   [roslaunch XML specifications](http://wiki.ros.org/roslaunch/XML) to try and
-   understand what is going in this file. Specifically, look at the
-   [tag reference](http://wiki.ros.org/roslaunch/XML) to see what the tags and
-   their corresponding attributes mean.
+Create a launchfile named *omni.launch* in *me495_phantom_omni/src* (same directory as the nodes) and paste [this](https://github.com/sherifm/me495_phantom_omni/blob/master/src/me495_omni.launch) code into it.
 
-5. After looking at the launch file, try launching the demo with different
-   settings for the [<arg> tags](http://wiki.ros.org/roslaunch/XML/arg) (and
-   thus, the corresponding 
-   [substitution args](http://wiki.ros.org/roslaunch/XML#substitution_args)).
+Build your workspace with  
+```python
+catkin_make
+```
+You have now emulated cloning the repository and may move onto exploring the demo.
 
-6. Take a look at the [urdf/manual_puppet.urdf](./urdf/manual_puppet.urdf) file,
-   and the [wiki description URDFs](http://wiki.ros.org/urdf) and the
-   corresponding [XML specification](http://wiki.ros.org/urdf/XML) for a
-   URDF. Can you understand how this relates to the *TF* tree? How about how
-   this fits together with `/joint_states` message? One helpful tool for
-   visualizing a URDF is the `urdf_to_graphiz` command line tool. In Ubuntu
-   14.04 and ROS Indigo, this tool is in the
-   [liburdfdom-tools](https://launchpad.net/ubuntu/trusty/+package/liburdfdom-tools)
-   deb package, and it is no longer part of the `urdfdom` ROS
-   package. Therefore, it must be installed with
-   ```bash
-   sudo apt-get install liburdfdom-tools
-   ```
-   Then running
-   ```bash
-   urdf_to_graphiz ~/catkin_ws/src/trep_puppet_demo/urdf/manual_puppet.urdf
-   ```
-   will create a PDF visualization of the URDF in your current working directory.
+The package that has been cloned from github or recreated manually provides an elaborately documented code that implement the goals of this mini-project.
+
+##Exploring the ME495 Mini-Project / me495_phantom_omni package
+
+This project uses elementary P-conrollers to calculate constraint forces. The control optimization is not the focus of this project. 
+
+**<span style="color:red">Caution: The Phantom's arm may go into resonance! GRIP THE STYLUS FIRMLY BEFORE STARTING THE LAUNCH FILE. </span>**
+
+Launch the me495 mini-project demo by starting the launchfile. Grip the stylus firmly as it will jump to its constrained axis. The forces are set to be manageable. If it goes in resonance, simply grab the arm manually and stabilize it. 
+
+```python
+roslaunch me495_phantom_omni me495_omni.launch
+```
+As the nodes launch, rviz should begin to simulate the robot arm (this is a function of the phantom_omni package). The me495_phantom_omni package is publishing the desired constraint forces. It's also printing interesting feedback data in two separate terminals that should look like this:
+
+[INSERT IMAGE]
+
+The first matrix - an element of the SE(3) space - was calculated using the [tf funcitons](http://wiki.ros.org/tf) package. It calculates the transformation from the fixed frame located at the base of the urdf model /base to the body frame located near the tip of the stylus. 
+
+(Tip: use *view_frames* again to view the frames! Upon launching the project, the launchfile is publishing an additional fixed frame floating in mid-air, which is utilized for simplified constraint geometry calculations):
+
+```python
+<node pkg="tf" type="static_transform_publisher" name="floating_frame_broadcaster"
+	args="0.28 0 0.1 0 0 0  /base /floating 100" />
+```
+
+The second matrix being displayed in the large terminal is also an element of SE(3) that shows the same transformation as the previous one. It is obtained by parsing the [urdf](http://wiki.ros.org/urdf) date to a [kdl](http://wiki.ros.org/kdl/Tutorials) chain that captures the Omni's kinematics, subscribing to the Omni's joint states and finally computing the forward kinematics.
+
+Using *tf.transformtaions.is_same_transform (matrix1,matrix2)* the two matrices are checked for equality.
+
+To test the inverse kinematics, the joint angles *q_sensors* were offset offset by a constant to emulate an initial guess. Using the position of the stylus, the joint angles were obtained with the KDL inverse kinematics tools. 
+
+The bottom-most vector shows the difference *delta_q* between the sensor joint angles *q_sensor* and the ones obtained through inverse kinematics. 
+
+In a separate smaller window the constraint forces acting on the stylus are being displayed
+
+ 
 
 
 
 
-
-
-[trep]: http://murpheylab.github.io/trep/
-[ejo]: http://nxr.northwestern.edu/people/elliot-johnson
-[pypi]: https://pypi.python.org/pypi/
-[pip]:https://pypi.python.org/pypi/pip
-[easy]: http://pythonhosted.org//setuptools/easy_install.html
-[tinstall]: http://murpheylab.github.io/trep/install/
