@@ -16,6 +16,8 @@ class OmniMiniProj:
 
 		self.timer1 = rospy.Timer(rospy.Duration(0.01), self.timer_callback) 
 
+		self.print_timer = rospy.Timer(rospy.Duration(1), self.print_output)
+
 		self.force_pub = rospy.Publisher('/omni1_force_feedback',OmniFeedback)
 
 		return
@@ -50,21 +52,23 @@ class OmniMiniProj:
 
 	def force_controller (self,pose_stylus,pose_floating):
 		
-		self.Kp = 10
+		self.Kpy = 100
+		self.Kpz = 50
 
-		self.Fx_d = self.Kp*pose_floating[0][0]-self.Kp*pose_stylus[0][0]
-		self.Fy_d = self.Kp*pose_floating[0][1]-self.Kp*pose_stylus[0][1]
-		self.Fz_d = self.Kp*pose_floating[0][2]-self.Kp*pose_stylus[0][2]
-
-		print self.Fx_d
-		print self.Fy_d
-		print self.Fz_d
+		self.Fx_d = (0*pose_floating[0][0]-0*pose_stylus[0][0])
+		self.Fy_d = self.Kpy*pose_floating[0][1]-self.Kpy*pose_stylus[0][1]
+		self.Fz_d = self.Kpy*pose_floating[0][2]-self.Kpz*pose_stylus[0][2]
 
 		self.Fd = OmniFeedback(force=Vector3(self.Fy_d,self.Fz_d,self.Fx_d),position=Vector3(0,0,0))
 		self.force_pub.publish(self.Fd)
 
+	def print_output (self,data):
 
-
+		if self.Fx_d != None and self.Fy_d != None and self.Fz_d != None:
+			print "Constraint forces on the stylus:\n"
+			print "Fx:" , self.Fx_d, "\n"
+			print "Fy:"	, self.Fy_d, "\n"
+			print "Fz:" , self.Fz_d, "\n\n"
 
 def main():
     """

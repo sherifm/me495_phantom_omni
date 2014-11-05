@@ -1,0 +1,18 @@
+<launch>
+
+<!-- static transform from omni base to a frame floating in mid-air -->
+  <node pkg="tf" type="static_transform_publisher" name="floating_frame_broadcaster"
+	args="0.28 0 0.1 0 0 0  /base /floating 100" />
+
+<!-- startup simulator node -->
+  <node pkg="me495_phantom_omni" type="omni_mini_proj.py" name="omni_mini_proj"
+	respawn="true" output="screen" />
+
+<!-- startup force controller node -->
+  <node pkg="me495_phantom_omni" type="force_controller.py" name="force_controller"
+	respawn="true" output="screen" launch-prefix = "xterm -e"/>
+
+<!-- startup omni -->
+  <include file="$(find phantom_omni)/launch/omni.launch" />
+
+</launch>
